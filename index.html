@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#617a3a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="WalkingMan" />
+
+    <title>WalkingMan</title>
+    <meta
+      name="description"
+      content="WalkingMan は、週ごとの歩数目標、今週の進捗、前週の結果、連続達成状況を管理する自分用の PWA です。"
+    />
+
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="panel goal-section" aria-labelledby="goalHeading">
+        <div class="section-head">
+          <h2 id="goalHeading">目標</h2>
+          <p class="section-note">月曜開始 / 日曜終了</p>
+        </div>
+        <div id="goalCurrent" class="goal-current">目標 50,000</div>
+        <div class="inline-form">
+          <label class="field" for="goalInput">
+            <span class="field-label">週間目標</span>
+            <input id="goalInput" type="number" inputmode="numeric" min="1" max="200000" step="1" />
+          </label>
+          <button id="goalSaveBtn" class="button primary" type="button">更新</button>
+        </div>
+      </section>
+
+      <section class="panel stats-section" aria-labelledby="statsHeading">
+        <div class="section-head">
+          <h2 id="statsHeading">集計</h2>
+          <p class="section-note">今週と前週だけ表示</p>
+        </div>
+        <div class="stats-grid">
+          <article class="stat-card accent">
+            <p class="stat-label">今週</p>
+            <p id="weekTotal" class="stat-value">0</p>
+          </article>
+          <article class="stat-card">
+            <p class="stat-label">平均</p>
+            <p id="weekAverage" class="stat-value">0</p>
+          </article>
+          <article class="stat-card">
+            <p class="stat-label">進捗</p>
+            <p id="progressRate" class="stat-value">0.0%</p>
+          </article>
+          <article class="stat-card">
+            <p class="stat-label">残り/日</p>
+            <p id="requiredPerDay" class="stat-value">0</p>
+          </article>
+          <article class="stat-card">
+            <p class="stat-label">前週</p>
+            <p id="prevWeekTotal" class="stat-value">0</p>
+          </article>
+          <article class="stat-card">
+            <p class="stat-label">連続</p>
+            <p id="streakInfo" class="stat-value">---</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel input-section" aria-labelledby="inputHeading">
+        <div class="section-head">
+          <h2 id="inputHeading">入力</h2>
+          <p class="section-note">今週 / 前週のみ編集可</p>
+        </div>
+        <div class="stack-form">
+          <label class="field" for="dateInput">
+            <span class="field-label">日付</span>
+            <input id="dateInput" type="date" />
+          </label>
+          <label class="field" for="stepsInput">
+            <span class="field-label">歩数</span>
+            <input id="stepsInput" type="number" inputmode="numeric" min="0" max="100000" step="1" />
+          </label>
+        </div>
+        <div class="action-row">
+          <button id="saveBtn" class="button primary" type="button">保存</button>
+          <button id="deleteBtn" class="button secondary" type="button">削除</button>
+        </div>
+        <div id="messageArea" class="message-area" role="status" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

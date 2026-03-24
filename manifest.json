@@ -1,0 +1,32 @@
+{
+  "id": "./",
+  "name": "WalkingMan",
+  "short_name": "WalkingMan",
+  "description": "WalkingMan は、今週の進捗、前週の合計、連続達成状況を管理する自分用の歩数管理アプリ。",
+  "lang": "ja-JP",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4eddc",
+  "theme_color": "#617a3a",
+  "categories": ["health", "lifestyle", "productivity"],
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
