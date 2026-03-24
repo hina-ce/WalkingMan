@@ -21,21 +21,6 @@
   </head>
   <body>
     <main class="app">
-      <section class="panel goal-section" aria-labelledby="goalHeading">
-        <div class="section-head">
-          <h2 id="goalHeading">目標</h2>
-          <p class="section-note">月曜開始 / 日曜終了</p>
-        </div>
-        <div id="goalCurrent" class="goal-current">目標 50,000</div>
-        <div class="inline-form">
-          <label class="field" for="goalInput">
-            <span class="field-label">週間目標</span>
-            <input id="goalInput" type="number" inputmode="numeric" min="1" max="200000" step="1" />
-          </label>
-          <button id="goalSaveBtn" class="button primary" type="button">更新</button>
-        </div>
-      </section>
-
       <section class="panel stats-section" aria-labelledby="statsHeading">
         <div class="section-head">
           <h2 id="statsHeading">集計</h2>
@@ -89,6 +74,21 @@
           <button id="deleteBtn" class="button secondary" type="button">削除</button>
         </div>
         <div id="messageArea" class="message-area" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="panel goal-section" aria-labelledby="goalHeading">
+        <div class="section-head">
+          <h2 id="goalHeading">目標</h2>
+          <p class="section-note">月曜開始 / 日曜終了</p>
+        </div>
+        <div id="goalCurrent" class="goal-current">目標 50,000</div>
+        <div class="inline-form">
+          <label class="field" for="goalInput">
+            <span class="field-label">週間目標</span>
+            <input id="goalInput" type="number" inputmode="numeric" min="1" max="200000" step="1" />
+          </label>
+          <button id="goalSaveBtn" class="button primary" type="button">更新</button>
+        </div>
       </section>
     </main>
 
