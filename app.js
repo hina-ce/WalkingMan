@@ -1,6 +1,7 @@
 const STORAGE_KEY = "walkingManData";
 const LEGACY_STORAGE_KEYS = ["walkingAppData"];
 const DEFAULT_GOAL_STEPS = 50000;
+const DEFAULT_TRAILING_AVERAGE_STEPS = 3000;
 const STEPS_LIMIT = 100000;
 const GOAL_LIMIT = 200000;
 const numberFormatter = new Intl.NumberFormat("ja-JP");
@@ -11,6 +12,7 @@ const elements = {
   goalSaveBtn: document.getElementById("goalSaveBtn"),
   weekTotal: document.getElementById("weekTotal"),
   weekAverage: document.getElementById("weekAverage"),
+  trailingWeekAverage: document.getElementById("trailingWeekAverage"),
   progressRate: document.getElementById("progressRate"),
   requiredPerDay: document.getElementById("requiredPerDay"),
   prevWeekTotal: document.getElementById("prevWeekTotal"),
@@ -335,6 +337,18 @@ function calculateCurrentWeekAverage(currentWeekTotal, elapsedDays) {
   return Math.round(currentWeekTotal / elapsedDays);
 }
 
+function calculateTrailingSevenDayAverage(data, endDate, fallbackSteps = DEFAULT_TRAILING_AVERAGE_STEPS) {
+  let total = 0;
+
+  for (let offset = 0; offset < 7; offset += 1) {
+    const dateKey = formatDateKey(addDays(endDate, -offset));
+    const steps = getDailySteps(data, dateKey);
+    total += steps === null ? fallbackSteps : steps;
+  }
+
+  return Math.round(total / 7);
+}
+
 function calculateProgressRate(currentWeekTotal, goalSteps) {
   if (goalSteps <= 0) {
     return 0;
@@ -489,6 +503,7 @@ function renderApp(data, context) {
   const elapsedDays = getElapsedDaysInWeek(context.today);
   const remainingDays = getRemainingDaysInWeek(context.today);
   const currentWeekAverage = calculateCurrentWeekAverage(currentWeekTotal, elapsedDays);
+  const trailingWeekAverage = calculateTrailingSevenDayAverage(data, addDays(context.today, -1));
   const progressRate = calculateProgressRate(currentWeekTotal, data.goalSteps);
   const requiredPerDay = calculateRequiredPerDay(currentWeekTotal, data.goalSteps, remainingDays);
   const streak = calculateStreak(data.weeklyHistory);
@@ -496,6 +511,7 @@ function renderApp(data, context) {
   elements.goalCurrent.textContent = `目標 ${formatNumber(data.goalSteps)}`;
   elements.weekTotal.textContent = formatNumber(currentWeekTotal);
   elements.weekAverage.textContent = formatNumber(currentWeekAverage);
+  elements.trailingWeekAverage.textContent = formatNumber(trailingWeekAverage);
   elements.progressRate.textContent = formatPercent(progressRate);
   elements.requiredPerDay.textContent =
     typeof requiredPerDay === "number" ? formatNumber(requiredPerDay) : requiredPerDay;
