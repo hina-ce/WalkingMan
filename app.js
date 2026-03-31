@@ -2,6 +2,8 @@ const STORAGE_KEY = "walkingManData";
 const LEGACY_STORAGE_KEYS = ["walkingAppData"];
 const DEFAULT_GOAL_STEPS = 50000;
 const DEFAULT_TRAILING_AVERAGE_STEPS = 3000;
+const TRAILING_AVERAGE_DAYS = 14;
+const RETENTION_DAYS = 31;
 const STEPS_LIMIT = 100000;
 const GOAL_LIMIT = 200000;
 const numberFormatter = new Intl.NumberFormat("ja-JP");
@@ -77,6 +79,10 @@ function getPrevWeekStart(weekStart) {
   return addDays(weekStart, -7);
 }
 
+function getRetentionStart(today) {
+  return addDays(today, -(RETENTION_DAYS - 1));
+}
+
 function getWeekEnd(weekStart) {
   return addDays(weekStart, 6);
 }
@@ -113,12 +119,15 @@ function formatIsoLocal(date) {
 
 function getRuntimeContext() {
   const today = getToday();
+  const retentionStart = getRetentionStart(today);
   const currentWeekStart = getWeekStart(today);
   const prevWeekStart = getPrevWeekStart(currentWeekStart);
 
   return {
     today,
     todayKey: formatDateKey(today),
+    retentionStart,
+    retentionStartKey: formatDateKey(retentionStart),
     currentWeekStart,
     currentWeekStartKey: formatDateKey(currentWeekStart),
     prevWeekStart,
@@ -242,14 +251,11 @@ function getDailySteps(data, dateKey) {
   return Number.isInteger(data.dailySteps[dateKey]) ? data.dailySteps[dateKey] : null;
 }
 
-function cleanupOldDailySteps(data, currentWeekStartKey, prevWeekStartKey) {
-  const currentWeekStart = parseDateKey(currentWeekStartKey);
-  const prevWeekStart = parseDateKey(prevWeekStartKey);
-
+function cleanupOldDailySteps(data, retentionStartKey, todayKey) {
   for (const dateKey of Object.keys(data.dailySteps)) {
     try {
-      const targetDate = parseDateKey(dateKey);
-      if (!isDateInWeek(targetDate, currentWeekStart) && !isDateInWeek(targetDate, prevWeekStart)) {
+      parseDateKey(dateKey);
+      if (dateKey < retentionStartKey || dateKey > todayKey) {
         delete data.dailySteps[dateKey];
       }
     } catch (error) {
@@ -293,21 +299,19 @@ function calculatePreviousWeekTotal(data, prevWeekStart) {
   return calculateWeekTotal(data, prevWeekStart);
 }
 
-function rebuildPreviousWeekHistory(data, prevWeekStartKey) {
-  const prevWeekStart = parseDateKey(prevWeekStartKey);
-  const totalSteps = calculatePreviousWeekTotal(data, prevWeekStart);
-  const hasAnyDailyEntry = Object.keys(data.dailySteps).some((dateKey) => isDateInWeek(parseDateKey(dateKey), prevWeekStart));
-
-  if (!hasAnyDailyEntry) {
-    delete data.weeklyHistory[prevWeekStartKey];
-    return;
-  }
-
-  data.weeklyHistory[prevWeekStartKey] = buildWeekHistoryEntry(totalSteps, data.goalSteps);
+function hasAnyDailyEntryInWeek(data, weekStart) {
+  return Object.keys(data.dailySteps).some((dateKey) => {
+    try {
+      return isDateInWeek(parseDateKey(dateKey), weekStart);
+    } catch (error) {
+      return false;
+    }
+  });
 }
 
-function finalizeElapsedDailyWeeks(data, prevWeekStartKey) {
-  const staleWeekKeys = [...new Set(
+function finalizeExpiredWeekHistories(data, retentionStart) {
+  const retentionStartKey = formatDateKey(retentionStart);
+  const expiredWeekKeys = [...new Set(
     Object.keys(data.dailySteps)
       .map((dateKey) => {
         try {
@@ -316,15 +320,67 @@ function finalizeElapsedDailyWeeks(data, prevWeekStartKey) {
           return null;
         }
       })
-      .filter((weekKey) => weekKey && weekKey < prevWeekStartKey)
+      .filter((weekKey) => {
+        if (!weekKey) {
+          return false;
+        }
+
+        return formatDateKey(getWeekEnd(parseDateKey(weekKey))) < retentionStartKey;
+      })
   )];
 
-  for (const weekKey of staleWeekKeys) {
+  for (const weekKey of expiredWeekKeys) {
     if (data.weeklyHistory[weekKey]) {
       continue;
     }
 
     const totalSteps = calculatePreviousWeekTotal(data, parseDateKey(weekKey));
+    data.weeklyHistory[weekKey] = buildWeekHistoryEntry(totalSteps, data.goalSteps);
+  }
+}
+
+function getFirstRetainedFullWeekStart(retentionStart) {
+  const retentionWeekStart = getWeekStart(retentionStart);
+
+  if (formatDateKey(retentionWeekStart) === formatDateKey(retentionStart)) {
+    return retentionWeekStart;
+  }
+
+  return addDays(retentionWeekStart, 7);
+}
+
+function getRetainedCompletedWeekKeys(context) {
+  const weekKeys = [];
+  let weekStart = getFirstRetainedFullWeekStart(context.retentionStart);
+
+  while (formatDateKey(weekStart) < context.currentWeekStartKey) {
+    weekKeys.push(formatDateKey(weekStart));
+    weekStart = addDays(weekStart, 7);
+  }
+
+  return weekKeys;
+}
+
+function removePartialRetentionWeekHistory(data, context) {
+  const retentionWeekStartKey = formatDateKey(getWeekStart(context.retentionStart));
+
+  if (retentionWeekStartKey === context.retentionStartKey || retentionWeekStartKey >= context.currentWeekStartKey) {
+    return;
+  }
+
+  delete data.weeklyHistory[retentionWeekStartKey];
+}
+
+function rebuildRetainedWeekHistories(data, context) {
+  for (const weekKey of getRetainedCompletedWeekKeys(context)) {
+    const weekStart = parseDateKey(weekKey);
+
+    if (!hasAnyDailyEntryInWeek(data, weekStart)) {
+      delete data.weeklyHistory[weekKey];
+      continue;
+    }
+
+    const totalSteps = calculatePreviousWeekTotal(data, weekStart);
     data.weeklyHistory[weekKey] = buildWeekHistoryEntry(totalSteps, data.goalSteps);
   }
 }
@@ -337,16 +393,16 @@ function calculateCurrentWeekAverage(currentWeekTotal, elapsedDays) {
   return Math.round(currentWeekTotal / elapsedDays);
 }
 
-function calculateTrailingSevenDayAverage(data, endDate, fallbackSteps = DEFAULT_TRAILING_AVERAGE_STEPS) {
+function calculateTrailingFourteenDayAverage(data, endDate, fallbackSteps = DEFAULT_TRAILING_AVERAGE_STEPS) {
   let total = 0;
 
-  for (let offset = 0; offset < 7; offset += 1) {
+  for (let offset = 0; offset < TRAILING_AVERAGE_DAYS; offset += 1) {
     const dateKey = formatDateKey(addDays(endDate, -offset));
     const steps = getDailySteps(data, dateKey);
     total += steps === null ? fallbackSteps : steps;
   }
 
-  return Math.round(total / 7);
+  return Math.round(total / TRAILING_AVERAGE_DAYS);
 }
 
 function calculateProgressRate(currentWeekTotal, goalSteps) {
@@ -436,7 +492,7 @@ function validateGoal(value) {
   return { ok: true, message: "" };
 }
 
-function validateEditableDate(dateKey, currentWeekStart, prevWeekStart) {
+function validateEditableDate(dateKey, retentionStart, today) {
   if (!dateKey) {
     return { ok: false, message: "日付を入力" };
   }
@@ -449,11 +505,12 @@ function validateEditableDate(dateKey, currentWeekStart, prevWeekStart) {
     return { ok: false, message: "日付が不正" };
   }
 
-  if (isDateInWeek(targetDate, currentWeekStart) || isDateInWeek(targetDate, prevWeekStart)) {
+  const targetKey = formatDateKey(targetDate);
+  if (targetKey >= formatDateKey(retentionStart) && targetKey <= formatDateKey(today)) {
     return { ok: true, message: "" };
   }
 
-  return { ok: false, message: "今週/前週のみ" };
+  return { ok: false, message: "直近1カ月のみ" };
 }
 
 function formatNumber(value) {
@@ -487,8 +544,8 @@ function clearMessage() {
 }
 
 function updateDateBounds(context) {
-  elements.dateInput.min = context.prevWeekStartKey;
-  elements.dateInput.max = formatDateKey(getWeekEnd(context.currentWeekStart));
+  elements.dateInput.min = context.retentionStartKey;
+  elements.dateInput.max = context.todayKey;
 }
 
 function syncSelectedDateInput(data) {
@@ -503,7 +560,7 @@ function renderApp(data, context) {
   const elapsedDays = getElapsedDaysInWeek(context.today);
   const remainingDays = getRemainingDaysInWeek(context.today);
   const currentWeekAverage = calculateCurrentWeekAverage(currentWeekTotal, elapsedDays);
-  const trailingWeekAverage = calculateTrailingSevenDayAverage(data, addDays(context.today, -1));
+  const trailingWeekAverage = calculateTrailingFourteenDayAverage(data, addDays(context.today, -1));
   const progressRate = calculateProgressRate(currentWeekTotal, data.goalSteps);
   const requiredPerDay = calculateRequiredPerDay(currentWeekTotal, data.goalSteps, remainingDays);
   const streak = calculateStreak(data.weeklyHistory);
@@ -532,9 +589,10 @@ async function registerServiceWorker() {
 }
 
 function prepareData(data, context) {
-  finalizeElapsedDailyWeeks(data, context.prevWeekStartKey);
-  cleanupOldDailySteps(data, context.currentWeekStartKey, context.prevWeekStartKey);
-  rebuildPreviousWeekHistory(data, context.prevWeekStartKey);
+  finalizeExpiredWeekHistories(data, context.retentionStart);
+  cleanupOldDailySteps(data, context.retentionStartKey, context.todayKey);
+  removePartialRetentionWeekHistory(data, context);
+  rebuildRetainedWeekHistories(data, context);
 }
 
 function initializeApp() {
@@ -563,7 +621,7 @@ function handleSaveSteps() {
   const dateKey = elements.dateInput.value;
   const stepsValue = elements.stepsInput.value.trim();
 
-  const dateValidation = validateEditableDate(dateKey, context.currentWeekStart, context.prevWeekStart);
+  const dateValidation = validateEditableDate(dateKey, context.retentionStart, context.today);
   if (!dateValidation.ok) {
     setMessage(dateValidation.message, "error");
     return;
@@ -588,7 +646,7 @@ function handleDeleteSteps() {
   const data = loadData();
   const dateKey = elements.dateInput.value;
 
-  const dateValidation = validateEditableDate(dateKey, context.currentWeekStart, context.prevWeekStart);
+  const dateValidation = validateEditableDate(dateKey, context.retentionStart, context.today);
   if (!dateValidation.ok) {
     setMessage(dateValidation.message, "error");
     return;
