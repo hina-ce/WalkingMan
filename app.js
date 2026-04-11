@@ -100,7 +100,7 @@ function getElapsedDaysInWeek(today) {
 }
 
 function getRemainingDaysInWeek(today) {
-  return 7 - getElapsedDaysInWeek(today);
+  return 8 - getElapsedDaysInWeek(today);
 }
 
 function formatIsoLocal(date) {
