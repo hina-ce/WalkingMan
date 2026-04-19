@@ -18,7 +18,6 @@ const elements = {
   progressRate: document.getElementById("progressRate"),
   requiredPerDay: document.getElementById("requiredPerDay"),
   prevWeekTotal: document.getElementById("prevWeekTotal"),
-  streakInfo: document.getElementById("streakInfo"),
   dateInput: document.getElementById("dateInput"),
   stepsInput: document.getElementById("stepsInput"),
   saveBtn: document.getElementById("saveBtn"),
@@ -427,27 +426,6 @@ function calculateRequiredPerDay(currentWeekTotal, goalSteps, remainingDays) {
   return Math.ceil(remainingSteps / remainingDays);
 }
 
-function calculateStreak(weeklyHistory) {
-  const weekKeys = Object.keys(weeklyHistory).sort().reverse();
-
-  if (weekKeys.length === 0) {
-    return { type: "none", count: 0 };
-  }
-
-  const firstType = weeklyHistory[weekKeys[0]].achieved ? "achieved" : "failed";
-  let count = 0;
-
-  for (const weekKey of weekKeys) {
-    const type = weeklyHistory[weekKey].achieved ? "achieved" : "failed";
-    if (type !== firstType) {
-      break;
-    }
-    count += 1;
-  }
-
-  return { type: firstType, count };
-}
-
 function validateSteps(value) {
   if (value.trim() === "") {
     return { ok: false, message: "歩数を入力" };
@@ -521,18 +499,6 @@ function formatPercent(value) {
   return `${value.toFixed(1)}%`;
 }
 
-function formatStreak(streak) {
-  if (streak.type === "achieved") {
-    return `達成 ${streak.count}`;
-  }
-
-  if (streak.type === "failed") {
-    return `未達 ${streak.count}`;
-  }
-
-  return "---";
-}
-
 function setMessage(message, type = "info") {
   elements.messageArea.textContent = message;
   elements.messageArea.className = `message-area is-${type}`;
@@ -563,7 +529,6 @@ function renderApp(data, context) {
   const trailingWeekAverage = calculateTrailingFourteenDayAverage(data, addDays(context.today, -1));
   const progressRate = calculateProgressRate(currentWeekTotal, data.goalSteps);
   const requiredPerDay = calculateRequiredPerDay(currentWeekTotal, data.goalSteps, remainingDays);
-  const streak = calculateStreak(data.weeklyHistory);
 
   elements.goalCurrent.textContent = `目標 ${formatNumber(data.goalSteps)}`;
   elements.weekTotal.textContent = formatNumber(currentWeekTotal);
@@ -573,7 +538,6 @@ function renderApp(data, context) {
   elements.requiredPerDay.textContent =
     typeof requiredPerDay === "number" ? formatNumber(requiredPerDay) : requiredPerDay;
   elements.prevWeekTotal.textContent = formatNumber(previousWeekTotal);
-  elements.streakInfo.textContent = formatStreak(streak);
 }
 
 async function registerServiceWorker() {

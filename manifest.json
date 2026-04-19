@@ -2,7 +2,7 @@
   "id": "./",
   "name": "WalkingMan",
   "short_name": "WalkingMan",
-  "description": "WalkingMan は、今週の進捗、前週の合計、連続達成状況を管理する自分用の歩数管理アプリ。",
+  "description": "WalkingMan は、今週の進捗と前週の合計を管理する自分用の歩数管理アプリ。",
   "lang": "ja-JP",
   "start_url": "./index.html",
   "scope": "./",
