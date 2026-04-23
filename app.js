@@ -13,7 +13,6 @@ const elements = {
   goalInput: document.getElementById("goalInput"),
   goalSaveBtn: document.getElementById("goalSaveBtn"),
   weekTotal: document.getElementById("weekTotal"),
-  weekAverage: document.getElementById("weekAverage"),
   trailingWeekAverage: document.getElementById("trailingWeekAverage"),
   progressRate: document.getElementById("progressRate"),
   requiredPerDay: document.getElementById("requiredPerDay"),
@@ -384,14 +383,6 @@ function rebuildRetainedWeekHistories(data, context) {
   }
 }
 
-function calculateCurrentWeekAverage(currentWeekTotal, elapsedDays) {
-  if (elapsedDays <= 0) {
-    return 0;
-  }
-
-  return Math.round(currentWeekTotal / elapsedDays);
-}
-
 function calculateTrailingFourteenDayAverage(data, endDate, fallbackSteps = DEFAULT_TRAILING_AVERAGE_STEPS) {
   let total = 0;
 
@@ -523,16 +514,13 @@ function syncSelectedDateInput(data) {
 function renderApp(data, context) {
   const currentWeekTotal = calculateCurrentWeekTotal(data, context.currentWeekStart, context.today);
   const previousWeekTotal = calculatePreviousWeekTotal(data, context.prevWeekStart);
-  const elapsedDays = getElapsedDaysInWeek(context.today);
   const remainingDays = getRemainingDaysInWeek(context.today);
-  const currentWeekAverage = calculateCurrentWeekAverage(currentWeekTotal, elapsedDays);
   const trailingWeekAverage = calculateTrailingFourteenDayAverage(data, addDays(context.today, -1));
   const progressRate = calculateProgressRate(currentWeekTotal, data.goalSteps);
   const requiredPerDay = calculateRequiredPerDay(currentWeekTotal, data.goalSteps, remainingDays);
 
   elements.goalCurrent.textContent = `目標 ${formatNumber(data.goalSteps)}`;
   elements.weekTotal.textContent = formatNumber(currentWeekTotal);
-  elements.weekAverage.textContent = formatNumber(currentWeekAverage);
   elements.trailingWeekAverage.textContent = formatNumber(trailingWeekAverage);
   elements.progressRate.textContent = formatPercent(progressRate);
   elements.requiredPerDay.textContent =
