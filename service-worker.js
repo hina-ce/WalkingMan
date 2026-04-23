@@ -1,11 +1,13 @@
-const STATIC_CACHE = "walkingman-static-v2";
-const RUNTIME_CACHE = "walkingman-runtime-v2";
-const CORE_ASSETS = [
+const APP_SHELL_CACHE = "walkingman-app-shell-v3";
+const IMAGE_CACHE = "walkingman-images-v3";
+const APP_SHELL_ASSETS = [
   "./",
   "./index.html",
   "./style.css",
   "./app.js",
-  "./manifest.json",
+  "./manifest.json"
+];
+const IMAGE_ASSETS = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png"
@@ -13,7 +15,10 @@ const CORE_ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(CORE_ASSETS)).then(() => self.skipWaiting())
+    Promise.all([
+      caches.open(APP_SHELL_CACHE).then((cache) => cache.addAll(APP_SHELL_ASSETS)),
+      caches.open(IMAGE_CACHE).then((cache) => cache.addAll(IMAGE_ASSETS))
+    ]).then(() => self.skipWaiting())
   );
 });
 
@@ -22,7 +27,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key !== STATIC_CACHE && key !== RUNTIME_CACHE)
+          .filter((key) => key.startsWith("walkingman-") && key !== APP_SHELL_CACHE && key !== IMAGE_CACHE)
           .map((key) => caches.delete(key))
       )
     ).then(() => self.clients.claim())
@@ -33,32 +38,54 @@ function isSameOrigin(request) {
   return new URL(request.url).origin === self.location.origin;
 }
 
-function isAppAsset(request) {
+function isAppShellAsset(request) {
   const url = new URL(request.url);
   return (
-    ["script", "style", "image", "font"].includes(request.destination) ||
+    request.destination === "script" ||
+    request.destination === "style" ||
     url.pathname.endsWith("/manifest.json") ||
     url.pathname.endsWith("manifest.json")
   );
 }
 
-async function handleNavigation(request) {
-  const cache = await caches.open(RUNTIME_CACHE);
+function isImageAsset(request) {
+  return request.destination === "image";
+}
 
+async function updateCache(cacheName, request, response) {
+  if (!response.ok) {
+    return response;
+  }
+
+  const cache = await caches.open(cacheName);
+  await cache.put(request, response.clone());
+  return response;
+}
+
+async function handleNavigation(request) {
   try {
     const response = await fetch(request);
-    if (response.ok) {
-      await cache.put(request, response.clone());
-    }
+    await updateCache(APP_SHELL_CACHE, "./index.html", response.clone());
     return response;
   } catch (error) {
-    return (await cache.match(request)) || (await caches.match("./index.html")) || Response.error();
+    const cache = await caches.open(APP_SHELL_CACHE);
+    return (await cache.match("./index.html")) || Response.error();
   }
 }
 
-async function handleAsset(request) {
-  const cache = await caches.open(RUNTIME_CACHE);
-  const cached = await caches.match(request);
+async function handleAppShellAsset(request) {
+  try {
+    const response = await fetch(request);
+    return await updateCache(APP_SHELL_CACHE, request, response);
+  } catch (error) {
+    const cache = await caches.open(APP_SHELL_CACHE);
+    return (await cache.match(request)) || Response.error();
+  }
+}
+
+async function handleImageAsset(request) {
+  const cache = await caches.open(IMAGE_CACHE);
+  const cached = await cache.match(request);
 
   if (cached) {
     return cached;
@@ -66,10 +93,7 @@ async function handleAsset(request) {
 
   try {
     const response = await fetch(request);
-    if (response.ok) {
-      await cache.put(request, response.clone());
-    }
-    return response;
+    return await updateCache(IMAGE_CACHE, request, response);
   } catch (error) {
     return Response.error();
   }
@@ -87,7 +111,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (isAppAsset(request)) {
-    event.respondWith(handleAsset(request));
+  if (isAppShellAsset(request)) {
+    event.respondWith(handleAppShellAsset(request));
+    return;
+  }
+
+  if (isImageAsset(request)) {
+    event.respondWith(handleImageAsset(request));
   }
 });

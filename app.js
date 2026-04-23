@@ -7,6 +7,7 @@ const RETENTION_DAYS = 31;
 const STEPS_LIMIT = 100000;
 const GOAL_LIMIT = 200000;
 const numberFormatter = new Intl.NumberFormat("ja-JP");
+let hasReloadedForServiceWorkerUpdate = false;
 
 const elements = {
   goalCurrent: document.getElementById("goalCurrent"),
@@ -534,7 +535,19 @@ async function registerServiceWorker() {
   }
 
   try {
-    await navigator.serviceWorker.register("./service-worker.js");
+    const hadController = Boolean(navigator.serviceWorker.controller);
+
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController || hasReloadedForServiceWorkerUpdate) {
+        return;
+      }
+
+      hasReloadedForServiceWorkerUpdate = true;
+      window.location.reload();
+    });
+
+    const registration = await navigator.serviceWorker.register("./service-worker.js");
+    await registration.update();
   } catch (error) {
     console.error("Service Worker registration failed:", error);
   }
@@ -548,6 +561,8 @@ function prepareData(data, context) {
 }
 
 function initializeApp() {
+  registerServiceWorker();
+
   const context = getRuntimeContext();
   const data = loadData();
 
@@ -559,7 +574,6 @@ function initializeApp() {
   elements.goalInput.value = String(data.goalSteps);
   syncSelectedDateInput(data);
   renderApp(data, context);
-  registerServiceWorker();
 }
 
 function handleDateChange() {
