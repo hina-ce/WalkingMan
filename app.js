@@ -16,7 +16,7 @@ const elements = {
   weekTotal: document.getElementById("weekTotal"),
   trailingWeekAverage: document.getElementById("trailingWeekAverage"),
   progressRate: document.getElementById("progressRate"),
-  requiredPerDay: document.getElementById("requiredPerDay"),
+  remainingSteps: document.getElementById("remainingSteps"),
   prevWeekTotal: document.getElementById("prevWeekTotal"),
   dateInput: document.getElementById("dateInput"),
   stepsInput: document.getElementById("stepsInput"),
@@ -91,15 +91,6 @@ function isDateInWeek(target, weekStart) {
   const startKey = formatDateKey(weekStart);
   const endKey = formatDateKey(getWeekEnd(weekStart));
   return targetKey >= startKey && targetKey <= endKey;
-}
-
-function getElapsedDaysInWeek(today) {
-  const day = today.getDay();
-  return day === 0 ? 7 : day;
-}
-
-function getRemainingDaysInWeek(today) {
-  return 8 - getElapsedDaysInWeek(today);
 }
 
 function formatIsoLocal(date) {
@@ -404,18 +395,14 @@ function calculateProgressRate(currentWeekTotal, goalSteps) {
   return (currentWeekTotal / goalSteps) * 100;
 }
 
-function calculateRequiredPerDay(currentWeekTotal, goalSteps, remainingDays) {
+function calculateRemainingSteps(currentWeekTotal, goalSteps) {
   const remainingSteps = goalSteps - currentWeekTotal;
 
   if (remainingSteps <= 0) {
     return 0;
   }
 
-  if (remainingDays === 0) {
-    return "---";
-  }
-
-  return Math.ceil(remainingSteps / remainingDays);
+  return remainingSteps;
 }
 
 function validateSteps(value) {
@@ -515,17 +502,15 @@ function syncSelectedDateInput(data) {
 function renderApp(data, context) {
   const currentWeekTotal = calculateCurrentWeekTotal(data, context.currentWeekStart, context.today);
   const previousWeekTotal = calculatePreviousWeekTotal(data, context.prevWeekStart);
-  const remainingDays = getRemainingDaysInWeek(context.today);
   const trailingWeekAverage = calculateTrailingFourteenDayAverage(data, addDays(context.today, -1));
   const progressRate = calculateProgressRate(currentWeekTotal, data.goalSteps);
-  const requiredPerDay = calculateRequiredPerDay(currentWeekTotal, data.goalSteps, remainingDays);
+  const remainingSteps = calculateRemainingSteps(currentWeekTotal, data.goalSteps);
 
   elements.goalCurrent.textContent = `目標 ${formatNumber(data.goalSteps)}`;
   elements.weekTotal.textContent = formatNumber(currentWeekTotal);
   elements.trailingWeekAverage.textContent = formatNumber(trailingWeekAverage);
   elements.progressRate.textContent = formatPercent(progressRate);
-  elements.requiredPerDay.textContent =
-    typeof requiredPerDay === "number" ? formatNumber(requiredPerDay) : requiredPerDay;
+  elements.remainingSteps.textContent = formatNumber(remainingSteps);
   elements.prevWeekTotal.textContent = formatNumber(previousWeekTotal);
 }
 
